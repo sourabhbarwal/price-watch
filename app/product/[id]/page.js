@@ -54,7 +54,11 @@
 
 import { mockProducts } from "../../../data/mockProducts";
 import { priceHistory } from "../../../data/priceHistory";
-import PriceHistoryChart from "../../../components/PriceHistoryChart";
+import AlertBadge from "../../../components/AlertBadge";
+import TargetPriceInput from "../../../components/TargetPriceInput";
+import { userTargets } from "../../../data/UserTargets";
+import ClientPriceHistoryChart from "../../../components/ClientPriceHistoryChart";
+
 
 export default async function ProductDetailPage({ params }) {
   // ✅ params is a Promise in new Next.js
@@ -74,12 +78,19 @@ export default async function ProductDetailPage({ params }) {
   }
 
   const history = priceHistory[product.id] || [];
+  const targetPrice = userTargets[product.id];
+  const alertActive =
+    targetPrice && product.currentPrice <= targetPrice;
 
   const trend =
     history.length >= 2
       ? history[history.length - 1].price -
         history[history.length - 2].price
       : 0;
+  const predictionHint =
+    trend < 0
+      ? "🧠 Likely to drop further"
+      : "🧠 Price may rise or stabilize";
 
   const trendLabel =
     trend < 0
@@ -89,12 +100,15 @@ export default async function ProductDetailPage({ params }) {
       : "➖ Price stable";
 
   return (
-    <section className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-2">
-        {product.name}
-      </h1>
+    <section className="max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">
+          {product.name}
+        </h1>
+        <AlertBadge isActive={alertActive} />
+      </div>
 
-      <p className="text-slate-400 mb-6">
+      <p className="text-slate-400">
         Store: {product.store}
       </p>
 
@@ -103,20 +117,28 @@ export default async function ProductDetailPage({ params }) {
           ₹{product.currentPrice}
         </p>
 
+        {targetPrice && (
+          <p className="text-sm text-slate-400">
+            Target price: ₹{targetPrice}
+          </p>
+        )}
+
         <p className="text-teal-400">
           Lowest recorded: ₹{product.lowestPrice}
         </p>
 
         <p className="text-sm text-slate-400">
-          {trendLabel}
+          {predictionHint}
         </p>
+
+        <TargetPriceInput targetPrice={targetPrice} />
       </div>
 
       <div className="mt-10 bg-white/5 border border-white/10 rounded-xl p-6">
         <h2 className="text-lg font-semibold mb-4">
           Price History
         </h2>
-        <PriceHistoryChart data={history} />
+        <ClientPriceHistoryChart data={history} />
       </div>
     </section>
   );
