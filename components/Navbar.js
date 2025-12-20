@@ -4,6 +4,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAlertStore } from "@/store/alertStore";
+import NotificationBell from "@/components/NotificationBell";
+
 
 const NAV_ITEMS = [
   {
@@ -48,6 +50,9 @@ export default function Navbar() {
           />
         );
       })}
+      {/* <div className="ml-1">
+        <NotificationBell />
+      </div> */}
     </nav>
   );
 }
