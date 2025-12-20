@@ -1,17 +1,21 @@
 // components/ProductCard.js
-
 import Link from "next/link";
-
 export default function ProductCard({ product }) {
+  // Derive lowest price safely from priceHistory
+  const lowestPrice =
+    product.priceHistory && product.priceHistory.length > 0
+      ? Math.min(...product.priceHistory.map((p) => p.price))
+      : product.currentPrice;
+
   return (
     <Link href={`/product/${product.id}`}>
       <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-6 hover:border-teal-400/60 hover:scale-[1.02] transition cursor-pointer">
         <h2 className="text-lg font-semibold mb-2">
-          {product.name}
+          {product.title}
         </h2>
 
         <p className="text-sm text-slate-400 mb-4">
-          Store: {product.store}
+          Store: Amazon
         </p>
 
         <p>
@@ -20,7 +24,7 @@ export default function ProductCard({ product }) {
         </p>
 
         <p className="text-teal-400">
-          Lowest: ₹{product.lowestPrice}
+          Lowest: ₹{lowestPrice}
         </p>
       </div>
     </Link>

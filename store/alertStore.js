@@ -1,129 +1,111 @@
-// // src/store/alertStore.js
-// import { create } from "zustand";
-
-// export const useAlertStore = create((set, get) => ({
-//   notifications: [],
-//   alertedProducts: {},
-
-//   addNotification(notification) {
-//     set((state) => ({
-//       notifications: [
-//         {
-//           id: crypto.randomUUID(),
-//           read: false,
-//           createdAt: new Date(),
-//           ...notification,
-//         },
-//         ...state.notifications,
-//       ],
-//       alertedProducts: {
-//         ...state.alertedProducts,
-//         [notification.productId]: true,
-//       },
-//     }));
-//   },
-
-//   markAsRead(id) {
-//     set((state) => ({
-//       notifications: state.notifications.map((n) =>
-//         n.id === id ? { ...n, read: true } : n
-//       ),
-//     }));
-//   },
-
-//   markAllAsRead() {
-//     set((state) => ({
-//       notifications: state.notifications.map((n) => ({
-//         ...n,
-//         read: true,
-//       })),
-//     }));
-//   },
-
-//   clearNotifications() {
-//     set({
-//       notifications: [],
-//     });
-//   },
-
-//   resetProductAlert(productId) {
-//     set((state) => {
-//       const updated = { ...state.alertedProducts };
-//       delete updated[productId];
-//       return { alertedProducts: updated };
-//     });
-//   },
-// }));
-
 // src/store/alertStore.js
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+const STORAGE_KEY = "price-watch-alerts";
+const COOLDOWN_MS = 1000 * 60 * 60; // 1 hour
+function loadAlerts() {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
 
-export const useAlertStore = create(
-  persist(
-    (set, get) => ({
-      notifications: [],
-      alertedProducts: {},
+function saveAlerts(alerts) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts));
+}
 
-      addNotification(notification) {
-        const exists = get().notifications.some(
-          (n) =>
-            n.productId === notification.productId &&
-            n.message === notification.message
-        );
-        if (exists) return;
+export const useAlertStore = create((set, get) => ({
+  notifications: loadAlerts(),
+  lastTriggered: {},
 
-        set((state) => ({
-          notifications: [
-            {
-              id: crypto.randomUUID(),
+  canTrigger: (productId) => {
+    const last = get().lastTriggered[productId];
+    if (!last) return true;
+    return Date.now() - last > COOLDOWN_MS;
+  },
+
+  addNotification: (notification) => {
+    if (!notification?.productId) return;
+    if (!get().canTrigger(notification.productId)) return;
+
+    const existingIndex = get().notifications.findIndex(
+      (n) =>
+        n.productId === notification.productId &&
+        n.type === notification.type
+    );
+
+    let updatedNotifications;
+
+    if (existingIndex !== -1) {
+      // 🔁 Merge into existing alert group
+      updatedNotifications = get().notifications.map((alert, idx) =>
+        idx === existingIndex
+          ? {
+              ...alert,
+              count: (alert.count || 1) + 1,
+              message: notification.message,
+              severity: notification.severity,
+              lastUpdatedAt: Date.now(),
               read: false,
-              createdAt: new Date(),
-              ...notification,
-            },
-            ...state.notifications,
-          ],
-          alertedProducts: {
-            ...state.alertedProducts,
-            [notification.productId]: true,
-          },
-        }));
-      },
+            }
+          : alert
+      );
+    } else {
+      // 🆕 Create new alert group
+      const newAlert = {
+        id: crypto.randomUUID(),
+        productId: notification.productId,
+        type: notification.type,
+        severity: notification.severity,
+        title: notification.title,
+        message: notification.message,
+        count: 1,
+        read: false,
+        createdAt: Date.now(),
+        lastUpdatedAt: Date.now(),
+      };
 
-      markAsRead(id) {
-        set((state) => ({
-          notifications: state.notifications.map((n) =>
-            n.id === id ? { ...n, read: true } : n
-          ),
-        }));
-      },
-
-      markAllAsRead() {
-        set((state) => ({
-          notifications: state.notifications.map((n) => ({
-            ...n,
-            read: true,
-          })),
-        }));
-      },
-
-      clearNotifications() {
-        set({
-          notifications: [],
-          alertedProducts: {},
-        });
-      },
-
-      resetProductAlert(productId) {
-        set((state) => {
-          const updated = { ...state.alertedProducts };
-          delete updated[productId];
-          return { alertedProducts: updated };
-        });
-      },
-    }),
-    {
-      name: "price-watch-alerts",
+      updatedNotifications = [newAlert, ...get().notifications];
     }
-  )
-);
+
+    saveAlerts(updatedNotifications);
+
+    set((state) => ({
+      notifications: updatedNotifications,
+      lastTriggered: {
+        ...state.lastTriggered,
+        [notification.productId]: Date.now(),
+      },
+    }));
+  },
+  resetProductAlert: (productId) => {
+    const filtered = get().notifications.filter(
+      (n) => n.productId !== productId
+    );
+
+    saveAlerts(filtered);
+
+    set((state) => {
+      const updatedLastTriggered = { ...state.lastTriggered };
+      delete updatedLastTriggered[productId];
+
+      return {
+        notifications: filtered,
+        lastTriggered: updatedLastTriggered,
+      };
+    });
+  },
+  markAsRead: (id) => {
+    const updated = get().notifications.map((n) =>
+      n.id === id ? { ...n, read: true } : n
+    );
+    saveAlerts(updated);
+    set({ notifications: updated });
+  },
+
+  clearNotifications: () => {
+    saveAlerts([]);
+    set({ notifications: [] });
+  },
+}));
