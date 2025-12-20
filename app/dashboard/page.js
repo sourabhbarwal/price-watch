@@ -3,10 +3,17 @@
 
 import { useProductStore } from "@/store/productStore";
 import ProductCard from "../../components/ProductCard";
+import { useMemo } from "react";
 
 export default function DashboardPage() {
   const { products, updateProductPrice } = useProductStore();
-
+  const productCards = useMemo(
+    () =>
+      products.map((product) => (
+        <ProductCard key={product.id} product={product} />
+      )),
+    [products]
+  );
   return (
     <section className="max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
