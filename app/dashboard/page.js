@@ -16,13 +16,13 @@ export default function DashboardPage() {
           <div key={product.id} className="space-y-3">
             <ProductCard product={product} />
 
-            {/* 🔧 DEV ONLY — PRICE UPDATE TRIGGER */}
+            {/* 🔧 DEV ONLY — PRICE UPDATE TRIGGER
             <button
               onClick={() => updateProductPrice(product.id)}
               className="w-full text-xs py-2 rounded-md border border-dashed border-gray-500 text-gray-300 hover:bg-gray-800"
             >
               Simulate Price Update (DEV)
-            </button>
+            </button> */}
           </div>
         ))}
       </div>
