@@ -1,62 +1,51 @@
-// // src/store/alertStore.js
-
-// import { create } from "zustand";
-// import { checkPriceAlert } from "@/lib/alertEngine";
-
-// export const useAlertStore = create((set, get) => ({
-//   notifications: [],
-
-//   addNotification: (notification) =>
-//     set((state) => ({
-//       notifications: [notification, ...state.notifications],
-//     })),
-
-//   markAsRead: (id) =>
-//     set((state) => ({
-//       notifications: state.notifications.map((n) =>
-//         n.id === id ? { ...n, read: true } : n
-//       ),
-//     })),
-
-//   runAlertCheck: (product) => {
-//     const alert = checkPriceAlert(product);
-//     if (alert) {
-//       get().addNotification(alert);
-//     }
-//   },
-// }));
-
 // /store/alertStore.js
 import { create } from "zustand";
 
-export const useAlertStore = create((set) => ({
-  notifications: [],
+const STORAGE_KEY = "pricewatch_notifications";
 
-  addNotification: (notification) =>
-    set((state) => ({
-      notifications: [
-        {
-          id: Date.now(),
-          read: false,
-          createdAt: new Date(),
-          ...notification,
-        },
-        ...state.notifications,
-      ],
-    })),
+export const useAlertStore = create((set, get) => ({
+  notifications:
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem(STORAGE_KEY)) || []
+      : [],
 
-  markAsRead: (id) =>
-    set((state) => ({
-      notifications: state.notifications.map((n) =>
-        n.id === id ? { ...n, read: true } : n
-      ),
-    })),
+  addNotification: (notification) => {
+    const exists = get().notifications.some(
+      (n) => n.refId === notification.refId
+    );
 
-  markAllAsRead: () =>
-    set((state) => ({
-      notifications: state.notifications.map((n) => ({
-        ...n,
-        read: true,
-      })),
-    })),
+    if (exists) return;
+
+    const updated = [
+      {
+        id: Date.now(),
+        read: false,
+        createdAt: new Date(),
+        ...notification,
+      },
+      ...get().notifications,
+    ];
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    set({ notifications: updated });
+  },
+
+  markAsRead: (id) => {
+    const updated = get().notifications.map((n) =>
+      n.id === id ? { ...n, read: true } : n
+    );
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    set({ notifications: updated });
+  },
+
+  markAllAsRead: () => {
+    const updated = get().notifications.map((n) => ({
+      ...n,
+      read: true,
+    }));
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    set({ notifications: updated });
+  },
 }));
