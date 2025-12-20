@@ -34,7 +34,7 @@ export default function Navbar() {
   return (
     <nav
       aria-label="Main navigation"
-      className="flex items-center gap-3"
+      className="flex justify-right items-center gap-3"
     >
       {NAV_ITEMS.map((item) => {
         const isActive = pathname === item.href;
@@ -50,9 +50,6 @@ export default function Navbar() {
           />
         );
       })}
-      {/* <div className="ml-1">
-        <NotificationBell />
-      </div> */}
     </nav>
   );
 }
@@ -64,16 +61,16 @@ function NavItem({ label, href, icon, active, unreadCount }) {
       aria-label={label}
       className={`
         group relative flex items-center
-        h-[44px]
-        overflow-hidden
+        h-[44px] w-[44px]
         rounded-xl
         font-medium text-sm
+        overflow-hidden
         transition-all duration-300 ease-in-out
 
         ${
           active
-            ? "w-[160px] bg-indigo-600 text-white shadow-md"
-            : "w-[44px] bg-slate-800 text-slate-400 hover:w-[160px] hover:bg-indigo-600 hover:text-white"
+            ? "bg-indigo-600 text-white"
+            : "bg-slate-800 text-slate-400 hover:w-[160px] hover:bg-indigo-600 hover:text-white"
         }
       `}
     >

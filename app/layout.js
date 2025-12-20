@@ -1,4 +1,4 @@
-// app/layout.js
+// src/app/layout.js
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 
@@ -13,17 +13,30 @@ export default function RootLayout({ children }) {
       </head>
 
       <body className="bg-slate-950 text-white">
-        <header className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-          <div className="text-lg font-semibold text-teal-400">
-            Price Watch
-          </div>
+        {/* ✅ SINGLE STICKY HEADER */}
+        <header
+          className="
+            sticky top-0 z-50
+            bg-slate-950/90 backdrop-blur-md
+            border-b border-slate-800
+          "
+        >
+          <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
+            {/* BRAND */}
+            <div className="text-lg font-semibold text-teal-400">
+              Price Watch
+            </div>
 
-          <Navbar />
+            {/* NAVBAR */}
+            <Navbar />
+          </div>
         </header>
 
-        <main className="min-h-screen">{children}</main>
+        {/* PAGE CONTENT */}
+        <main className="min-h-screen max-w-7xl mx-auto px-6 py-8">
+          {children}
+        </main>
       </body>
     </html>
   );
 }
-
