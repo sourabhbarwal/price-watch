@@ -1,73 +1,25 @@
-// // app/product/[id]/page.js
-
-// import { mockProducts } from "../../../data/mockProducts";
-
-// export default function ProductDetailPage({ params }) {
-//   const product = mockProducts.find(
-//     (item) => item.id === params.id
-//   );
-
-//   if (!product) {
-//     return (
-//       <p className="text-center text-slate-400">
-//         Product not found.
-//       </p>
-//     );
-//   }
-
-//   return (
-//     <section className="max-w-4xl mx-auto">
-//       <h1 className="text-3xl font-bold mb-4">
-//         {product.name}
-//       </h1>
-
-//       <p className="text-slate-400 mb-6">
-//         Store: {product.store}
-//       </p>
-
-//       <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-6 space-y-4">
-//         <p>
-//           <span className="text-slate-400">Current Price:</span>{" "}
-//           <span className="text-xl font-semibold">
-//             ₹{product.currentPrice}
-//           </span>
-//         </p>
-
-//         <p className="text-teal-400">
-//           Lowest Recorded Price: ₹{product.lowestPrice}
-//         </p>
-
-//         <p className="text-sm text-slate-500">
-//           Last updated: {product.lastUpdated}
-//         </p>
-//       </div>
-
-//       {/* Chart placeholder */}
-//       <div className="mt-10 p-6 rounded-xl border border-dashed border-white/20 text-slate-400 text-center">
-//         📈 Price history chart coming in Phase-4
-//       </div>
-//     </section>
-//   );
-// }
-
 // app/product/[id]/page.js
+"use client";
 
-import { mockProducts } from "../../../data/mockProducts";
-import { priceHistory } from "../../../data/priceHistory";
-import AlertBadge from "../../../components/AlertBadge";
+import { useParams } from "next/navigation";
+import { useProductStore } from "@/store/productStore";
 import TargetPriceInput from "../../../components/TargetPriceInput";
-import { userTargets } from "../../../data/UserTargets";
 import ClientPriceHistoryChart from "../../../components/ClientPriceHistoryChart";
+import { calculatePriceAnalytics } from "@/lib/priceAnalytics";
+import { useMemo } from "react";
 
+export default function ProductDetailPage() {
+  const params = useParams();
+  const productId = Array.isArray(params?.id)
+    ? params.id[0]
+    : params?.id;
 
-export default async function ProductDetailPage({ params }) {
-  // ✅ params is a Promise in new Next.js
-  const resolvedParams = await params;
-  const productId = String(resolvedParams.id);
+  const { products } = useProductStore();
 
-  const product = mockProducts.find(
-    (item) => String(item.id) === productId
-  );
+  const product = useMemo(
+  () => products.find(p => String(p.id) === String(productId)),
+  [products, productId]
+);
 
   if (!product) {
     return (
@@ -77,69 +29,87 @@ export default async function ProductDetailPage({ params }) {
     );
   }
 
-  const history = priceHistory[product.id] || [];
-  const targetPrice = userTargets[product.id];
-  const alertActive =
-    targetPrice && product.currentPrice <= targetPrice;
-
-  const trend =
-    history.length >= 2
-      ? history[history.length - 1].price -
-        history[history.length - 2].price
-      : 0;
-  const predictionHint =
-    trend < 0
-      ? "🧠 Likely to drop further"
-      : "🧠 Price may rise or stabilize";
-
-  const trendLabel =
-    trend < 0
-      ? "📉 Price dropping — good time to buy"
-      : trend > 0
-      ? "📈 Price rising — consider waiting"
-      : "➖ Price stable";
+  const history = product.priceHistory || [];
+  const analytics = calculatePriceAnalytics(history);
 
   return (
     <section className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">
-          {product.name}
-        </h1>
-        <AlertBadge isActive={alertActive} />
-      </div>
+      <h1 className="text-3xl font-bold">
+        {product.title}
+      </h1>
 
       <p className="text-slate-400">
-        Store: {product.store}
+        Current Price: ₹{product.currentPrice}
       </p>
+      {/* PRICE INSIGHTS */}
+      <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/5 to-white/0 p-6 mt-8">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-sm font-semibold text-white tracking-wide">
+            Price Insights
+          </h2>
+          <span className="text-xs text-slate-400">
+            Based on recent trends
+          </span>
+        </div>
 
-      <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-6 space-y-3">
-        <p className="text-xl font-semibold">
-          ₹{product.currentPrice}
-        </p>
-
-        {targetPrice && (
-          <p className="text-sm text-slate-400">
-            Target price: ₹{targetPrice}
-          </p>
-        )}
-
-        <p className="text-teal-400">
-          Lowest recorded: ₹{product.lowestPrice}
-        </p>
-
-        <p className="text-sm text-slate-400">
-          {predictionHint}
-        </p>
-
-        <TargetPriceInput targetPrice={targetPrice} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <InsightItem
+            label="Lowest"
+            value={`₹${analytics.lowestPrice}`}
+            muted
+          />
+          <InsightItem
+            label="Average"
+            value={`₹${analytics.averagePrice}`}
+          />
+          <InsightItem
+            label="Volatility"
+            value={analytics.volatilityScore}
+            suffix=" pts"
+          />
+          <InsightItem
+            label="Buying Signal"
+            value={analytics.bestTimeToBuy}
+            highlight
+          />
+        </div>
       </div>
-
-      <div className="mt-10 bg-white/5 border border-white/10 rounded-xl p-6">
-        <h2 className="text-lg font-semibold mb-4">
-          Price History
-        </h2>
-        <ClientPriceHistoryChart data={history} />
-      </div>
+      <ClientPriceHistoryChart data={history} />
     </section>
   );
 }
+
+
+function InsightItem({ label, value, suffix = "", highlight, muted }) {
+  return (
+    <div
+      className={`
+        rounded-xl px-4 py-3
+        transition-transform transition-shadow duration-180
+        hover:-translate-y-0.5 hover:shadow-md 
+        ${highlight
+          ? "bg-emerald-500/10 border border-emerald-400/30"
+          : "bg-black/30"}
+      `}
+    >
+
+      <p className="text-[11px] uppercase tracking-wider text-slate-400 mb-1">
+        {label}
+      </p>
+      <p
+        className={`text-base font-semibold ${
+          highlight
+            ? "text-teal-400"
+            : muted
+            ? "text-slate-300"
+            : "text-white"
+        }`}
+      >
+        {value}
+        {suffix}
+      </p>
+    </div>
+  );
+}
+
+

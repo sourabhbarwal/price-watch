@@ -33,9 +33,10 @@ export default function RootLayout({ children }) {
         </header>
 
         {/* PAGE CONTENT */}
-        <main className="min-h-screen max-w-7xl mx-auto px-6 py-8">
+        <div className="animate-[fadeIn_160ms_var(--ease-standard)]">
           {children}
-        </main>
+        </div>
+
       </body>
     </html>
   );
