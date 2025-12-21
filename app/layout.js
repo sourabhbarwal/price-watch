@@ -1,6 +1,7 @@
 // src/app/layout.js
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import AuthInitializer from "@/components/AuthInitializer";
 
 export default function RootLayout({ children }) {
   return (
@@ -11,6 +12,8 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
       </head>
+      {/* Auth bootstrap (client-only) */}
+        <AuthInitializer />
 
       <body className="bg-slate-950 text-white">
         {/* ✅ SINGLE STICKY HEADER */}

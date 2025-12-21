@@ -1,5 +1,5 @@
 // src/adapters/index.js
-import { localAdapter } from "./localAdapter";
+import { localAdapter } from "./localStorageAdapter";
 import { supabaseAdapter } from "./supabaseAdapter";
 
 const useBackend =
