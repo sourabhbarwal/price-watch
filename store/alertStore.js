@@ -72,79 +72,59 @@
 //   },
 // }));
 
-// /store/alertStore.js
-
 import { create } from "zustand";
 
 const STORAGE_KEY = "price-watch-alerts";
-const ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+const ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 function loadAlerts() {
   if (typeof window === "undefined") return [];
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
   } catch {
     return [];
   }
 }
 
 function saveAlerts(alerts) {
-  if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts));
 }
 
-function isDuplicate(existingAlerts, newAlert) {
-  return existingAlerts.some((alert) => {
-    return (
-      alert.type === newAlert.type &&
-      alert.productId === newAlert.productId &&
-      alert.metadata?.currentPrice === newAlert.metadata?.currentPrice
-    );
-  });
+function isDuplicate(existing, incoming) {
+  return existing.some(
+    (a) =>
+      a.type === incoming.type &&
+      a.productId === incoming.productId &&
+      a.metadata?.currentPrice === incoming.metadata?.currentPrice
+  );
 }
 
-function isInCooldown(existingAlerts, newAlert) {
-  const now = Date.now();
-
-  const lastAlert = existingAlerts.find(
-    (alert) =>
-      alert.type === newAlert.type &&
-      alert.productId === newAlert.productId
+function isInCooldown(existing, incoming) {
+  const last = existing.find(
+    (a) => a.type === incoming.type && a.productId === incoming.productId
   );
-
-  if (!lastAlert) return false;
-
-  return now - lastAlert.createdAt < ALERT_COOLDOWN_MS;
+  return last ? Date.now() - last.createdAt < ALERT_COOLDOWN_MS : false;
 }
 
 export const useAlertStore = create((set, get) => ({
   notifications: loadAlerts(),
 
-  pushAlert: (alert) => {
+  pushAlert(alert) {
     const existing = get().notifications;
 
-    // 1️⃣ Exact duplicate protection
-    if (isDuplicate(existing, alert)) {
-      return;
-    }
+    if (isDuplicate(existing, alert)) return;
+    if (isInCooldown(existing, alert)) return;
 
-    // 2️⃣ Cooldown protection
-    if (isInCooldown(existing, alert)) {
-      return;
-    }
+    const updated = [
+      { id: crypto.randomUUID(), ...alert },
+      ...existing,
+    ];
 
-    const alertWithId = {
-      id: crypto.randomUUID(),
-      ...alert,
-    };
-
-    const updated = [alertWithId, ...existing];
     saveAlerts(updated);
     set({ notifications: updated });
   },
 
-  markAsRead: (id) => {
+  markAsRead(id) {
     const updated = get().notifications.map((n) =>
       n.id === id ? { ...n, read: true } : n
     );
@@ -152,7 +132,7 @@ export const useAlertStore = create((set, get) => ({
     set({ notifications: updated });
   },
 
-  markAllAsRead: () => {
+  markAllAsRead() {
     const updated = get().notifications.map((n) => ({
       ...n,
       read: true,
@@ -161,7 +141,7 @@ export const useAlertStore = create((set, get) => ({
     set({ notifications: updated });
   },
 
-  clearNotifications: () => {
+  clearNotifications() {
     saveAlerts([]);
     set({ notifications: [] });
   },
