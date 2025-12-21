@@ -73,7 +73,6 @@
 // }));
 
 import { create } from "zustand";
-
 const STORAGE_KEY = "price-watch-alerts";
 const ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
@@ -108,6 +107,7 @@ function isInCooldown(existing, incoming) {
 
 export const useAlertStore = create((set, get) => ({
   notifications: loadAlerts(),
+  lastTriggered: {},
 
   pushAlert(alert) {
     const existing = get().notifications;
