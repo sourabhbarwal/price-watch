@@ -1,105 +1,162 @@
-// src/store/alertStore.js
+// // /store/alertStore.js
+
+// import { create } from "zustand";
+
+// const STORAGE_KEY = "price-watch-alerts";
+
+// function loadAlerts() {
+//   if (typeof window === "undefined") return [];
+//   try {
+//     const data = localStorage.getItem(STORAGE_KEY);
+//     return data ? JSON.parse(data) : [];
+//   } catch {
+//     return [];
+//   }
+// }
+
+// function saveAlerts(alerts) {
+//   if (typeof window === "undefined") return;
+//   localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts));
+// }
+
+// function isDuplicate(existingAlerts, newAlert) {
+//   return existingAlerts.some((alert) => {
+//     return (
+//       alert.type === newAlert.type &&
+//       alert.productId === newAlert.productId &&
+//       alert.metadata?.currentPrice === newAlert.metadata?.currentPrice
+//     );
+//   });
+// }
+
+// export const useAlertStore = create((set, get) => ({
+//   notifications: loadAlerts(),
+
+//   pushAlert: (alert) => {
+//     const existing = get().notifications;
+
+//     if (isDuplicate(existing, alert)) {
+//       return;
+//     }
+
+//     const alertWithId = {
+//       id: crypto.randomUUID(),
+//       ...alert,
+//     };
+
+//     const updated = [alertWithId, ...existing];
+//     saveAlerts(updated);
+//     set({ notifications: updated });
+//   },
+
+//   markAsRead: (id) => {
+//     const updated = get().notifications.map((n) =>
+//       n.id === id ? { ...n, read: true } : n
+//     );
+//     saveAlerts(updated);
+//     set({ notifications: updated });
+//   },
+
+//   markAllAsRead: () => {
+//     const updated = get().notifications.map((n) => ({
+//       ...n,
+//       read: true,
+//     }));
+//     saveAlerts(updated);
+//     set({ notifications: updated });
+//   },
+
+//   clearNotifications: () => {
+//     saveAlerts([]);
+//     set({ notifications: [] });
+//   },
+// }));
+
+// /store/alertStore.js
+
 import { create } from "zustand";
+
 const STORAGE_KEY = "price-watch-alerts";
-const COOLDOWN_MS = 1000 * 60 * 60; // 1 hour
+const ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 function loadAlerts() {
   if (typeof window === "undefined") return [];
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
   } catch {
     return [];
   }
 }
 
 function saveAlerts(alerts) {
+  if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts));
+}
+
+function isDuplicate(existingAlerts, newAlert) {
+  return existingAlerts.some((alert) => {
+    return (
+      alert.type === newAlert.type &&
+      alert.productId === newAlert.productId &&
+      alert.metadata?.currentPrice === newAlert.metadata?.currentPrice
+    );
+  });
+}
+
+function isInCooldown(existingAlerts, newAlert) {
+  const now = Date.now();
+
+  const lastAlert = existingAlerts.find(
+    (alert) =>
+      alert.type === newAlert.type &&
+      alert.productId === newAlert.productId
+  );
+
+  if (!lastAlert) return false;
+
+  return now - lastAlert.createdAt < ALERT_COOLDOWN_MS;
 }
 
 export const useAlertStore = create((set, get) => ({
   notifications: loadAlerts(),
-  lastTriggered: {},
 
-  canTrigger: (productId) => {
-    const last = get().lastTriggered[productId];
-    if (!last) return true;
-    return Date.now() - last > COOLDOWN_MS;
-  },
+  pushAlert: (alert) => {
+    const existing = get().notifications;
 
-  addNotification: (notification) => {
-    if (!notification?.productId) return;
-    if (!get().canTrigger(notification.productId)) return;
-
-    const existingIndex = get().notifications.findIndex(
-      (n) =>
-        n.productId === notification.productId &&
-        n.type === notification.type
-    );
-
-    let updatedNotifications;
-
-    if (existingIndex !== -1) {
-      // 🔁 Merge into existing alert group
-      updatedNotifications = get().notifications.map((alert, idx) =>
-        idx === existingIndex
-          ? {
-              ...alert,
-              count: (alert.count || 1) + 1,
-              message: notification.message,
-              severity: notification.severity,
-              lastUpdatedAt: Date.now(),
-              read: false,
-            }
-          : alert
-      );
-    } else {
-      // 🆕 Create new alert group
-      const newAlert = {
-        id: crypto.randomUUID(),
-        productId: notification.productId,
-        type: notification.type,
-        severity: notification.severity,
-        title: notification.title,
-        message: notification.message,
-        count: 1,
-        read: false,
-        createdAt: Date.now(),
-        lastUpdatedAt: Date.now(),
-      };
-
-      updatedNotifications = [newAlert, ...get().notifications];
+    // 1️⃣ Exact duplicate protection
+    if (isDuplicate(existing, alert)) {
+      return;
     }
 
-    saveAlerts(updatedNotifications);
+    // 2️⃣ Cooldown protection
+    if (isInCooldown(existing, alert)) {
+      return;
+    }
 
-    set((state) => ({
-      notifications: updatedNotifications,
-      lastTriggered: {
-        ...state.lastTriggered,
-        [notification.productId]: Date.now(),
-      },
-    }));
+    const alertWithId = {
+      id: crypto.randomUUID(),
+      ...alert,
+    };
+
+    const updated = [alertWithId, ...existing];
+    saveAlerts(updated);
+    set({ notifications: updated });
   },
-  resetProductAlert: (productId) => {
-    const filtered = get().notifications.filter(
-      (n) => n.productId !== productId
-    );
 
-    saveAlerts(filtered);
-
-    set((state) => {
-      const updatedLastTriggered = { ...state.lastTriggered };
-      delete updatedLastTriggered[productId];
-
-      return {
-        notifications: filtered,
-        lastTriggered: updatedLastTriggered,
-      };
-    });
-  },
   markAsRead: (id) => {
     const updated = get().notifications.map((n) =>
       n.id === id ? { ...n, read: true } : n
     );
+    saveAlerts(updated);
+    set({ notifications: updated });
+  },
+
+  markAllAsRead: () => {
+    const updated = get().notifications.map((n) => ({
+      ...n,
+      read: true,
+    }));
     saveAlerts(updated);
     set({ notifications: updated });
   },
