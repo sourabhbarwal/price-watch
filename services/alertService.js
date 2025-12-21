@@ -1,27 +1,17 @@
-import { storage } from "@/adapters/localStorageAdapter";
-import { createPriceDropNotification } from "@/lib/notificationSchema";
+// src/services/alertService.js
+import { evaluatePriceAlert } from "@/lib/alertEngineV2";
+import { useAlertStore } from "@/store/alertStore";
 
-export function runAlertCheck(product) {
-  if (!product.alertEnabled) return;
+/**
+ * Central alert coordinator
+ * Store handles cooldown + dedupe
+ */
+export function handleProductAlert(product) {
+  const alertStore = useAlertStore.getState();
 
-  if (product.currentPrice <= product.targetPrice) {
-    const alerts = storage.getAlerts();
+  const alert = evaluatePriceAlert(product);
 
-    const exists = alerts.some(
-      (a) =>
-        a.metadata?.productId === product.id &&
-        a.metadata?.newPrice === product.currentPrice
-    );
-
-    if (exists) return;
-
-    const notification = {
-      id: crypto.randomUUID(),
-      ...createPriceDropNotification(product),
-      createdAt: Date.now(),
-      read: false,
-    };
-
-    storage.saveAlerts([notification, ...alerts]);
+  if (alert) {
+    alertStore.pushAlert(alert);
   }
 }

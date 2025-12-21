@@ -1,25 +1,47 @@
+// src/adapters/localAdapter.js
+
 const safeJSON = {
   get(key, fallback) {
     if (typeof window === "undefined") return fallback;
     try {
-      return JSON.parse(localStorage.getItem(key)) ?? fallback;
+      const value = localStorage.getItem(key);
+      return value ? JSON.parse(value) : fallback;
     } catch {
       return fallback;
     }
   },
+
   set(key, value) {
     if (typeof window === "undefined") return;
     localStorage.setItem(key, JSON.stringify(value));
   },
 };
 
-export const storage = {
-  getProducts: () => safeJSON.get("pw_products", []),
-  saveProducts: (data) => safeJSON.set("pw_products", data),
+export const localAdapter = {
+  // PRODUCTS
+  getProducts() {
+    return safeJSON.get("pw_products", []);
+  },
 
-  getAlerts: () => safeJSON.get("pw_alerts", []),
-  saveAlerts: (data) => safeJSON.set("pw_alerts", data),
+  saveProducts(products) {
+    safeJSON.set("pw_products", products);
+  },
 
-  getSettings: () => safeJSON.get("pw_settings", {}),
-  saveSettings: (data) => safeJSON.set("pw_settings", data),
+  // ALERTS
+  getAlerts() {
+    return safeJSON.get("pw_alerts", []);
+  },
+
+  saveAlerts(alerts) {
+    safeJSON.set("pw_alerts", alerts);
+  },
+
+  // SETTINGS
+  getSettings() {
+    return safeJSON.get("pw_settings", {});
+  },
+
+  saveSettings(settings) {
+    safeJSON.set("pw_settings", settings);
+  },
 };

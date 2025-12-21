@@ -1,33 +1,28 @@
-import { storage } from "../adapters/localStorageAdapter";
-import { simulatePriceDrop } from "../mockPriceUpdater";
-import { runAlertCheck } from "./alertService";
+// src/services/productService.js
+import { simulatePriceDrop } from "@/lib/mockPriceUpdater";
+import { handleProductAlert } from "./alertService";
 
+/**
+ * Business rules for product updates
+ */
 export const productService = {
-  getAll() {
-    return storage.getProducts();
-  },
+  updatePrice(product) {
+    const newPrice = simulatePriceDrop(product.currentPrice);
 
-  saveAll(products) {
-    storage.saveProducts(products);
-  },
+    const updatedProduct = {
+      ...product,
+      currentPrice: newPrice,
+      priceHistory: [
+        ...product.priceHistory,
+        {
+          date: new Date().toLocaleDateString(),
+          price: newPrice,
+        },
+      ],
+    };
 
-  updatePrice(productId) {
-    const products = storage.getProducts();
+    handleProductAlert(updatedProduct);
 
-    const updated = products.map((p) => {
-      if (p.id !== productId) return p;
-
-      const updatedProduct = {
-        ...p,
-        currentPrice: simulatePriceDrop(p.currentPrice),
-        updatedAt: Date.now(),
-      };
-
-      runAlertCheck(updatedProduct);
-      return updatedProduct;
-    });
-
-    storage.saveProducts(updated);
-    return updated;
+    return updatedProduct;
   },
 };

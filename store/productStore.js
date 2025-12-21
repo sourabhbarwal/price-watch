@@ -4,13 +4,12 @@
 // import { evaluatePriceAlert } from "@/lib/alertEngineV2";
 // import { useAlertStore } from "@/store/alertStore";
 
-// export const useProductStore = create((set, get) => ({
+// export const useProductStore = create((set) => ({
 //   products: [
 //     {
 //       id: "1",
 //       title: "iPhone 15",
 //       currentPrice: 79999,
-//       targetPrice: 75000,
 //       alertEnabled: true,
 //       priceHistory: [
 //         { date: "Dec 10", price: 82999 },
@@ -23,7 +22,6 @@
 //       id: "2",
 //       title: "Sony WH-1000XM5",
 //       currentPrice: 29999,
-//       targetPrice: 26000,
 //       alertEnabled: true,
 //       priceHistory: [
 //         { date: "Dec 10", price: 31999 },
@@ -33,37 +31,32 @@
 //     },
 //   ],
 
-//   updateProductPrice: (productId) => {
+//   updateProductPrice(productId) {
 //     const alertStore = useAlertStore.getState();
 
 //     set((state) => ({
 //       products: state.products.map((product) => {
 //         if (product.id !== productId) return product;
 
-//         // 1️⃣ Simulate price change
+//         // 1️⃣ Simulate new price
 //         const newPrice = simulatePriceDrop(product.currentPrice);
 
-//         // 2️⃣ Update price history
-//         const updatedHistory = [
-//           ...product.priceHistory,
-//           {
-//             date: new Date().toLocaleDateString(),
-//             price: newPrice,
-//           },
-//         ];
-
+//         // 2️⃣ Append history
 //         const updatedProduct = {
 //           ...product,
 //           currentPrice: newPrice,
-//           priceHistory: updatedHistory,
+//           priceHistory: [
+//             ...product.priceHistory,
+//             { date: new Date().toLocaleDateString(), price: newPrice },
+//           ],
 //         };
 
-//         // 3️⃣ Ask alert engine if alert should fire
+//         // 3️⃣ Ask alert engine
 //         const alert = evaluatePriceAlert(updatedProduct);
 
-//         // 4️⃣ Trigger alert (if allowed by cooldown)
+//         // 4️⃣ Alert store decides persistence (cooldown + dedupe)
 //         if (alert) {
-//           alertStore.addNotification(alert);
+//           alertStore.pushAlert(alert);
 //         }
 
 //         return updatedProduct;
@@ -74,9 +67,7 @@
 
 // src/store/productStore.js
 import { create } from "zustand";
-import { simulatePriceDrop } from "@/lib/mockPriceUpdater";
-import { evaluatePriceAlert } from "@/lib/alertEngineV2";
-import { useAlertStore } from "@/store/alertStore";
+import { productService } from "@/services/productService";
 
 export const useProductStore = create((set) => ({
   products: [
@@ -106,34 +97,10 @@ export const useProductStore = create((set) => ({
   ],
 
   updateProductPrice(productId) {
-    const alertStore = useAlertStore.getState();
-
     set((state) => ({
       products: state.products.map((product) => {
         if (product.id !== productId) return product;
-
-        // 1️⃣ Simulate new price
-        const newPrice = simulatePriceDrop(product.currentPrice);
-
-        // 2️⃣ Append history
-        const updatedProduct = {
-          ...product,
-          currentPrice: newPrice,
-          priceHistory: [
-            ...product.priceHistory,
-            { date: new Date().toLocaleDateString(), price: newPrice },
-          ],
-        };
-
-        // 3️⃣ Ask alert engine
-        const alert = evaluatePriceAlert(updatedProduct);
-
-        // 4️⃣ Alert store decides persistence (cooldown + dedupe)
-        if (alert) {
-          alertStore.pushAlert(alert);
-        }
-
-        return updatedProduct;
+        return productService.updatePrice(product);
       }),
     }));
   },
