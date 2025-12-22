@@ -1,107 +1,84 @@
 // // src/store/productStore.js
 // import { create } from "zustand";
-// import { simulatePriceDrop } from "@/lib/mockPriceUpdater";
-// import { evaluatePriceAlert } from "@/lib/alertEngineV2";
-// import { useAlertStore } from "@/store/alertStore";
+// import { productService } from "@/services/productService";
 
 // export const useProductStore = create((set) => ({
-//   products: [
-//     {
-//       id: "1",
-//       title: "iPhone 15",
-//       currentPrice: 79999,
-//       alertEnabled: true,
-//       priceHistory: [
-//         { date: "Dec 10", price: 82999 },
-//         { date: "Dec 12", price: 81999 },
-//         { date: "Dec 14", price: 80999 },
-//         { date: "Dec 16", price: 79999 },
-//       ],
-//     },
-//     {
-//       id: "2",
-//       title: "Sony WH-1000XM5",
-//       currentPrice: 29999,
-//       alertEnabled: true,
-//       priceHistory: [
-//         { date: "Dec 10", price: 31999 },
-//         { date: "Dec 12", price: 30999 },
-//         { date: "Dec 14", price: 29999 },
-//       ],
-//     },
-//   ],
+//   products: [],
+//   loading: false,
 
-//   updateProductPrice(productId) {
-//     const alertStore = useAlertStore.getState();
+//   async loadProducts() {
+//     set({ loading: true });
 
-//     set((state) => ({
-//       products: state.products.map((product) => {
-//         if (product.id !== productId) return product;
+//     try {
+//       const products =
+//         await productService.loadProducts();
+//       set({ products });
+//     } catch (err) {
+//       console.error("Load products failed", err);
+//     } finally {
+//       set({ loading: false });
+//     }
+//   },
 
-//         // 1️⃣ Simulate new price
-//         const newPrice = simulatePriceDrop(product.currentPrice);
+//   async updateProductPrice(productId) {
+//     set({ loading: true });
 
-//         // 2️⃣ Append history
-//         const updatedProduct = {
-//           ...product,
-//           currentPrice: newPrice,
-//           priceHistory: [
-//             ...product.priceHistory,
-//             { date: new Date().toLocaleDateString(), price: newPrice },
-//           ],
-//         };
-
-//         // 3️⃣ Ask alert engine
-//         const alert = evaluatePriceAlert(updatedProduct);
-
-//         // 4️⃣ Alert store decides persistence (cooldown + dedupe)
-//         if (alert) {
-//           alertStore.pushAlert(alert);
-//         }
-
-//         return updatedProduct;
-//       }),
-//     }));
+//     try {
+//       set((state) => ({
+//         products: state.products.map((product) =>
+//           product.id === productId
+//             ? productService.updatePrice(product)
+//             : product
+//         ),
+//       }));
+//     } finally {
+//       set({ loading: false });
+//     }
 //   },
 // }));
 
 // src/store/productStore.js
 import { create } from "zustand";
 import { productService } from "@/services/productService";
+import { useAuthStore } from "./authStore";
 
 export const useProductStore = create((set) => ({
-  products: [
-    {
-      id: "1",
-      title: "iPhone 15",
-      currentPrice: 79999,
-      alertEnabled: true,
-      priceHistory: [
-        { date: "Dec 10", price: 82999 },
-        { date: "Dec 12", price: 81999 },
-        { date: "Dec 14", price: 80999 },
-        { date: "Dec 16", price: 79999 },
-      ],
-    },
-    {
-      id: "2",
-      title: "Sony WH-1000XM5",
-      currentPrice: 29999,
-      alertEnabled: true,
-      priceHistory: [
-        { date: "Dec 10", price: 31999 },
-        { date: "Dec 12", price: 30999 },
-        { date: "Dec 14", price: 29999 },
-      ],
-    },
-  ],
+  products: [],
+  loading: false,
 
-  updateProductPrice(productId) {
-    set((state) => ({
-      products: state.products.map((product) => {
-        if (product.id !== productId) return product;
-        return productService.updatePrice(product);
-      }),
-    }));
+  async loadProducts() {
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+
+    set({ loading: true });
+
+    try {
+      const products =
+        await productService.loadProducts(user);
+      set({ products });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  async updateProductPrice(productId) {
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+
+    set({ loading: true });
+
+    try {
+      set((state) => ({
+        products: state.products.map((p) =>
+          p.id === productId
+            ? productService.updatePrice(p, user)
+            : p
+        ),
+      }));
+    } finally {
+      set({ loading: false });
+    }
   },
 }));
