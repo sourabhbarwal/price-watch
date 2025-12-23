@@ -2,29 +2,34 @@
 "use client";
 
 import { useEffect } from "react";
+import { useAuthStore } from "@/store/authStore";
 import { useProductStore } from "@/store/productStore";
 import ProductCard from "@/components/ProductCard";
 
 export default function DashboardPage() {
-  const { products, loadProducts } =
-    useProductStore();
+  const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.loading);
+  const { products, loadProducts, loading } = useProductStore();
 
-  // TEMP: hardcoded userId
   useEffect(() => {
-    loadProducts("demo-user-id");
-  }, []);
+    if (user?.id) {
+      loadProducts(user.id);
+    }
+  }, [user?.id]);
+  
+  if (authLoading) return null;
+  if (!user) return null;
+  if (loading) return <p>Loading products...</p>;
 
   return (
-    <section className="max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
+    <div className="p-6 grid gap-4 grid-cols-1 md:grid-cols-2">
+      {products.length === 0 && (
+        <p className="text-slate-400">No products yet.</p>
+      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.map((product) => (
-          <div key={product.id} className="space-y-3">
-            <ProductCard product={product} />
-          </div>
-        ))}
-      </div>
-    </section>
+      {products.map((product) => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </div>
   );
 }

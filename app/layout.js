@@ -2,6 +2,8 @@
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import AuthInitializer from "@/components/AuthInitializer";
+import AuthCleanupClient from "@/components/AuthCleanupClient";
+
 import AuthGate from "@/components/AuthGate";
 
 export default function RootLayout({ children }) {
@@ -18,6 +20,7 @@ export default function RootLayout({ children }) {
 
       <body className="bg-slate-950 text-white">
         <AuthInitializer />
+        <AuthCleanupClient />
         {/* ✅ SINGLE STICKY HEADER */}
         <header
           className="
