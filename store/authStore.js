@@ -1,38 +1,48 @@
-// src/store/authStore.js
+// // src/store/authStore.js
+
 import { create } from "zustand";
 import { authService } from "@/services/authService";
 
 export const useAuthStore = create((set) => ({
+  session: null,
   user: null,
   loading: true,
 
   async init() {
-    const user = await authService.getCurrentUser();
-    set({ user, loading: false });
+    // 🔑 Restore session FIRST
+    const session = await authService.getSession();
 
-    authService.onAuthChange((user) => {
-      set({ user });
+    set({
+      session,
+      user: session?.user ?? null,
+      loading: false,
+    });
+
+    // 🔑 Subscribe to future auth changes
+    authService.onAuthChange((session) => {
+      set({
+        session,
+        user: session?.user ?? null,
+      });
     });
   },
 
   async signIn(email, password) {
-    const user = await authService.signIn(
+    const session = await authService.signIn(
       email,
       password
     );
-    set({ user });
-  },
 
-  async signUp(email, password) {
-    const user = await authService.signUp(
-      email,
-      password
-    );
-    set({ user });
+    set({
+      session,
+      user: session.user,
+    });
+
+    return session;
   },
 
   async signOut() {
     await authService.signOut();
-    set({ user: null });
+    set({ session: null, user: null });
   },
 }));

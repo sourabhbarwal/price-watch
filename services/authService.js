@@ -10,7 +10,7 @@ export const authService = {
       });
 
     if (error) throw error;
-    return data.user;
+    return data.session; // 🔑 return session
   },
 
   async signUp(email, password) {
@@ -21,24 +21,24 @@ export const authService = {
       });
 
     if (error) throw error;
-    return data.user;
+    return data.session; // 🔑 return session
   },
 
   async signOut() {
     await supabase.auth.signOut();
   },
 
-  async getCurrentUser() {
+  async getSession() {
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    return user;
+      data: { session },
+    } = await supabase.auth.getSession();
+    return session;
   },
 
   onAuthChange(callback) {
     return supabase.auth.onAuthStateChange(
       (_event, session) => {
-        callback(session?.user ?? null);
+        callback(session); // 🔑 pass session, not user
       }
     );
   },
