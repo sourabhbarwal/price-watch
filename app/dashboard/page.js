@@ -4,6 +4,7 @@
 import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useProductStore } from "@/store/productStore";
+import { productService } from "@/services/productService";
 import ProductCard from "@/components/ProductCard";
 
 export default function DashboardPage() {
@@ -11,25 +12,65 @@ export default function DashboardPage() {
   const authLoading = useAuthStore((s) => s.loading);
   const { products, loadProducts, loading } = useProductStore();
 
+  // useEffect(() => {
+  //   if (user?.id) {
+  //     loadProducts(user.id);
+  //   } 
+  // }, [user?.id]);
   useEffect(() => {
-    if (user?.id) {
-      loadProducts(user.id);
+    loadProducts();
+  }, [loadProducts]);
+
+  const handleAddDevProduct = async () => {
+    if (!user) return;
+
+    try{
+      await productService.createProduct({
+        userId: user.id,
+        title: "DEV Test Product",
+        url: "https://example.com/product",
+        price: 1999,
+      });
+      
+      await loadProducts();
+    } catch (err) {
+        console.error("DEV product insert failed:", err);
+        alert(
+          err?.message ||
+            "Failed to add dev product. Check console."
+        );
     }
-  }, [user?.id]);
-  
-  if (authLoading) return null;
-  if (!user) return null;
-  if (loading) return <p>Loading products...</p>;
+  };
+
+  // if (authLoading) return null;
+  // if (!user) return null;
+  if (loading) return <p className="px-6 py-4">Loading products...</p>;
 
   return (
-    <div className="p-6 grid gap-4 grid-cols-1 md:grid-cols-2">
-      {products.length === 0 && (
+    <div className="p-6 space-y-6">
+       <button
+        onClick={handleAddDevProduct}
+        className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm"
+      >
+        + Add Dev Product
+      </button>
+
+      {products.length === 0 ? (
         <p className="text-slate-400">No products yet.</p>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {products.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+            />
+          ))}
+        </div>
       )}
 
-      {products.map((product) => (
+      {/* {products.map((product) => (
         <ProductCard key={product.id} product={product} />
-      ))}
+      ))} */}
     </div>
   );
 }
