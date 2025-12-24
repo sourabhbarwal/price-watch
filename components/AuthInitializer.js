@@ -1,20 +1,22 @@
+//src/components/AuthInitializer.js
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/authStore";
 
 /**
  * Client-only auth bootstrapper
- * Keeps app/layout.js as a Server Component
+ * Runs exactly once
  */
 export default function AuthInitializer() {
-  const initAuth = useAuthStore(
-    (state) => state.init
-  );
+  const init = useAuthStore((state) => state.init);
+  const initialized = useRef(false);
 
   useEffect(() => {
-    initAuth();
-  }, []);
+    if (initialized.current) return;
+    initialized.current = true;
+    init();
+  }, [init]);
 
-  return null; // no UI
+  return null;
 }
