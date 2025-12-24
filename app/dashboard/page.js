@@ -8,18 +8,27 @@ import { productService } from "@/services/productService";
 import ProductCard from "@/components/ProductCard";
 
 export default function DashboardPage() {
-  const user = useAuthStore((s) => s.user);
-  const authLoading = useAuthStore((s) => s.loading);
-  const { products, loadProducts, loading } = useProductStore();
+  const { user, loading: authLoading } =
+    useAuthStore();
+  const { products, loadProducts, loading: productLoading } = useProductStore();
 
-  // useEffect(() => {
-  //   if (user?.id) {
-  //     loadProducts(user.id);
-  //   } 
-  // }, [user?.id]);
   useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
+    if (!authLoading && user) {
+      loadProducts();
+    }
+  }, [authLoading, user]);
+
+  if (authLoading || productLoading) {
+    return <p className="p-6">Loading…</p>;
+  }
+
+  if (!products.length) {
+    return (
+      <p className="p-6 text-slate-400">
+        No products yet.
+      </p>
+    );
+  }
 
   const handleAddDevProduct = async () => {
     if (!user) return;
@@ -42,10 +51,6 @@ export default function DashboardPage() {
     }
   };
 
-  // if (authLoading) return null;
-  // if (!user) return null;
-  if (loading) return <p className="px-6 py-4">Loading products...</p>;
-
   return (
     <div className="p-6 space-y-6">
        <button
@@ -67,10 +72,6 @@ export default function DashboardPage() {
           ))}
         </div>
       )}
-
-      {/* {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
-      ))} */}
     </div>
   );
 }

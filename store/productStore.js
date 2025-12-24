@@ -6,29 +6,26 @@ import { useAuthStore } from "@/store/authStore";
 export const useProductStore = create((set,get) => ({
   products: [],
   loading: false,
-  error: null,
 
   async loadProducts() {
-    const { user } = useAuthStore.getState();
+    const { user, loading: authLoading } =
+      useAuthStore.getState();
 
-    if (!user){
-      set({products: [],loading:false});
-      return;
-    }
+    if (authLoading || !user) return;
 
-    set({ loading: true , error: null});
+    set({ loading: true});
     try {
       const products = await productService.getProducts(user.id);
       set({ products });
     } catch (err) {
       console.error("Failed to load products", err);
-      set({ error: err.message || "Failed to load products" });
+      set({ products: [] });
     } finally {
       set({ loading: false });
     }
   },
 
   clearProducts() {
-    set({ products: [] , loading: false , error:null});
+    set({ products: []  });
   },
 }));
