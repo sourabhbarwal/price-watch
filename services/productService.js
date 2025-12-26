@@ -73,4 +73,15 @@ export const productService = {
     if (error) throw error;
     return data;
   },
+  async getProductById(productId) {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("id", productId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
 };
