@@ -11,10 +11,14 @@ export default function Navbar() {
   const pathname = usePathname();
 
   const { session, signOut } = useAuthStore();
-  const { notifications } = useAlertStore();
+  // const { notifications } = useAlertStore();
+  const notifications = useAlertStore((state) => state.notifications);
+  const unreadCount = notifications.filter(
+    (n) => !n.read
+  ).length;
 
   const user = session?.user || null;
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  // const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <nav className="flex items-center gap-6 px-6 py-4 ">
@@ -67,8 +71,17 @@ export default function Navbar() {
         ">
           Notifications
           {unreadCount > 0 && (
-            <span className="ml-1 text-red-500">
-              ({unreadCount})
+            <span className="
+              absolute top-1 right-1
+              flex items-center justify-center
+              w-5 h-5
+              rounded-full
+              bg-red-500
+              text-white
+              text-[10px]
+              font-semibold
+            ">
+              {unreadCount}
             </span>
           )}
         </span>
