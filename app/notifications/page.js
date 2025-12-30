@@ -2,6 +2,7 @@
 "use client";
 
 import { useAlertStore } from "@/store/alertStore";
+import AuthGuard from "@/components/Authguard";
 
 const TYPE_STYLES = {
   "price-drop": "border-l-teal-400",
@@ -20,6 +21,7 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
+    <AuthGuard>
     <main className="p-6 max-w-3xl mx-auto space-y-8">
       {/* HEADER */}
       <header className="flex items-center justify-between">
@@ -96,5 +98,6 @@ export default function NotificationsPage() {
         ))}
       </ul>
     </main>
+    </AuthGuard>
   );
 }

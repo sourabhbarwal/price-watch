@@ -1,5 +1,8 @@
 // src/services/productService.js
 import { supabase } from "@/lib/supabaseClient";
+import { evaluatePriceAlert } from "@/lib/alertEngineV2";
+import { useAlertStore } from "@/store/alertStore";
+
 
 export const productService = {
   async getProducts(userId) {
@@ -28,40 +31,59 @@ export const productService = {
    * 🔑 Single source of truth for price updates
    */
   async updateProductPrice({ productId, newPrice }) {
-    // 1️⃣ Get latest recorded price
-    const { data: lastPoint } = await supabase
-      .from("price_history")
-      .select("price")
-      .eq("product_id", productId)
-      .order("recorded_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  // 1️⃣ Get latest recorded price
+  const { data: lastPoint } = await supabase
+    .from("price_history")
+    .select("price")
+    .eq("product_id", productId)
+    .order("recorded_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-    // 2️⃣ If price unchanged → do nothing
-    if (lastPoint?.price === newPrice) {
-      return { skipped: true };
-    }
+  // 2️⃣ If price unchanged → do nothing
+  if (lastPoint?.price === newPrice) {
+    return { skipped: true };
+  }
 
-    // 3️⃣ Update product current price
-    const { error: productError } = await supabase
-      .from("products")
-      .update({ current_price: newPrice })
-      .eq("id", productId);
+  // 3️⃣ Update product current price
+  const { error: productError } = await supabase
+    .from("products")
+    .update({ current_price: newPrice })
+    .eq("id", productId);
 
-    if (productError) throw productError;
+  if (productError) throw productError;
 
-    // 4️⃣ Insert price history point
-    const { error: historyError } = await supabase
-      .from("price_history")
-      .insert({
-        product_id: productId,
-        price: newPrice,
-      });
+  // 4️⃣ Insert price history
+  const { error: historyError } = await supabase
+    .from("price_history")
+    .insert({
+      product_id: productId,
+      price: newPrice,
+    });
 
-    if (historyError) throw historyError;
+  if (historyError) throw historyError;
 
-    return { updated: true };
-  },
+  // 5️⃣ Fetch UPDATED product (important)
+  const { data: product, error: fetchError } = await supabase
+    .from("products")
+    .select("*")
+    .eq("id", productId)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  // 6️⃣ Evaluate alert
+  const alert = evaluatePriceAlert(product);
+
+  // 7️⃣ Push alert (dedupe & cooldown handled by store)
+  if (alert) {
+    console.log("🔔 Alert triggered:", alert);
+    useAlertStore.getState().pushAlert(alert);
+  }
+
+  return { updated: true };
+},
+
 
   async getPriceHistory(productId) {
     const { data, error } = await supabase
