@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useProductStore } from "@/store/productStore";
 import { productService } from "@/services/productService";
 import ProductCard from "@/components/ProductCard";
+import AuthGuard from "@/components/Authguard";
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -62,6 +63,7 @@ export default function DashboardPage() {
   }
 
   return (
+    <AuthGuard>
     <div className="space-y-6">
       {/* 🔹 HEADER */}
       <div className="flex items-center justify-between">
@@ -112,5 +114,6 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+    </AuthGuard>
   );
 }
