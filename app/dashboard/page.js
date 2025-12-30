@@ -7,6 +7,7 @@ import { useProductStore } from "@/store/productStore";
 import { productService } from "@/services/productService";
 import ProductCard from "@/components/ProductCard";
 import AuthGuard from "@/components/Authguard";
+import { startAutoPriceCheck } from "@/lib/autoPriceCheckEngine";
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -24,6 +25,12 @@ export default function DashboardPage() {
       loadProducts(user.id);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (products.length > 0) {
+      startAutoPriceCheck(products);
+    }
+  }, [products]);
 
   // 🔹 DEV: Add product (already existing in your flow)
   async function handleAddDevProduct() {

@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Price Watch – Product Tracker",
+  "description": "Add products to Price Watch directly from shopping sites.",
+  "version": "0.1.0",
+
+  "action": {
+    "default_popup": "popup.html"
+  },
+
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+
+  "host_permissions": [
+    "https://www.amazon.in/*",
+    "https://www.amazon.com/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.amazon.in/*",
+        "https://www.amazon.com/*"
+      ],
+      "js": ["content.js"]
+    }
+  ]
+}
