@@ -21,7 +21,13 @@ export default function NotificationDropdown({ onClose }) {
         shadow-2xl
         z-50
         overflow-hidden
-        animate-in fade-in zoom-in-95
+
+        transition-all duration-200 ease-out
+        origin-top-right
+        data-[state=open]:opacity-100
+        data-[state=open]:scale-100
+        data-[state=open]:translate-y-0
+        opacity-100 scale-95 -translate-y-1
       "
     >
       {/* HEADER */}
