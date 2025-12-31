@@ -8,9 +8,16 @@ import { productService } from "@/services/productService";
 import ProductCard from "@/components/ProductCard";
 import AuthGuard from "@/components/Authguard";
 import { startAutoPriceCheck } from "@/lib/autoPriceCheckEngine";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useRef } from "react";
+
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const extensionHandledRef = useRef(false);
+
 
   const {
     products,
@@ -18,6 +25,43 @@ export default function DashboardPage() {
     loadProducts,
     addProduct,
   } = useProductStore();
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fromExt = searchParams.get("fromExt");
+    if (fromExt !== "1") return;
+
+    if (extensionHandledRef.current) return;
+  extensionHandledRef.current = true;
+
+    const title = searchParams.get("title");
+    const price = Number(searchParams.get("price"));
+    const platform = searchParams.get("platform");
+    const productUrl = searchParams.get("productUrl");
+
+    if (!title || !price || !platform || !productUrl) return;
+
+    async function addFromExtension() {
+      try {
+        await productService.createProduct({
+          user_id: user.id,
+          title,
+          platform,
+          product_url: productUrl,
+          current_price: price,
+        });
+
+        // clean URL
+        router.replace("/dashboard");
+      } catch (err) {
+        console.error("Extension add failed", err);
+      }
+    }
+
+    addFromExtension();
+  }, [user?.id]);
+
 
   // Load products when user is ready
   useEffect(() => {
