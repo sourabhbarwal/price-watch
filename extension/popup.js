@@ -1,98 +1,132 @@
-// /extension/popup.js
+// // /extension/popup.js
+// function renderProduct(product) {
+//   addBtn.textContent = "Add to Price Watch";
+//   addBtn.disabled = false;
 
-const addBtn = document.getElementById("addBtn");
+//   // Clear old preview (important on re-open)
+//   const oldPreview = document.getElementById("product-preview");
+//   if (oldPreview) oldPreview.remove();
 
-let resolved = false;
+//   const preview = document.createElement("div");
+//   preview.id = "product-preview";
+//   preview.style.marginTop = "10px";
+//   preview.style.fontSize = "12px";
+//   preview.style.color = "#cbd5f5";
+//   preview.style.lineHeight = "1.4";
 
-chrome.tabs.query({ active: true, currentWindow: true }, async ([tab]) => {
-  if (!tab?.id || !tab.url) {
-    addBtn.textContent = "No active tab";
-    return;
-  }
+//   preview.innerHTML = `
+//     <div style="font-weight:600; margin-bottom:4px;">
+//       ${product.title}
+//     </div>
+//     <div>Platform: ${product.platform}</div>
+//     <div>Price: ₹${product.price}</div>
+//   `;
 
-  const url = tab.url;
+//   document.body.appendChild(preview);
 
-  let platform = null;
-  if (isAmazonProductPage(url)) platform = "amazon";
+//   // Click handler (unchanged routing logic)
+//   addBtn.onclick = () => {
+//     const url = new URL(`${APP_BASE_URL}/dashboard`);
+//     url.searchParams.set("fromExt", "1");
+//     url.searchParams.set("title", product.title);
+//     url.searchParams.set("price", product.price);
+//     url.searchParams.set("platform", product.platform);
+//     url.searchParams.set("productUrl", product.url);
 
-  if (!platform) {
-    addBtn.textContent = "Open a Product page.";
-    addBtn.disabled = true;
-    return;
-  }
+//     chrome.tabs.create({ url: url.toString() });
+//   };
+// }
 
-  addBtn.textContent = "Reading product details…";
+
+// function isAmazonProductPage(url) {
+//   try {
+//     const u = new URL(url);
+//     return (
+//       u.hostname.includes("amazon") &&
+//       (u.pathname.includes("/dp/") ||
+//         u.pathname.includes("/gp/product/"))
+//     );
+//   } catch {
+//     return false;
+//   }
+// }
+
+// extension/popup.js
+
+document.addEventListener("DOMContentLoaded", () => {
+  const addBtn = document.getElementById("addBtn");
+  const APP_BASE_URL = "http://localhost:3000";
+
+  if (!addBtn) return;
+
+  addBtn.textContent = "Detecting product…";
   addBtn.disabled = true;
 
-  await extractWithRetry(tab.id, platform);
-});
-
-/* -----------------------------
-   Controlled async retry loop
------------------------------- */
-async function extractWithRetry(tabId, platform) {
-  const MAX_ATTEMPTS = 10;
-  const DELAY = 400;
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    if (resolved) return;
-
-    const result = await executeExtraction(tabId, platform);
-
-    if (result?.title && result?.price) {
-      resolved = true;
-      renderProduct(result);
+  chrome.tabs.query({ active: true, currentWindow: true }, async ([tab]) => {
+    if (!tab?.id || !tab.url) {
+      addBtn.textContent = "No active tab";
       return;
     }
 
-    await sleep(DELAY);
-  }
+    if (!isAmazonProductPage(tab.url)) {
+      addBtn.textContent = "Open an Amazon product page";
+      return;
+    }
 
-  if (!resolved) {
-    addBtn.textContent = "Unable to read product price";
-    addBtn.disabled = true;
-  }
-}
+    const product = await extractAmazonWithRetry(tab.id);
 
-function executeExtraction(tabId, platform) {
-  return new Promise((resolve) => {
-    chrome.scripting.executeScript(
-      {
-        target: { tabId },
-        func: extractProductFromPage,
-        args: [platform],
-      },
-      (results) => {
-        resolve(results?.[0]?.result ?? null);
-      }
-    );
+    if (!product) {
+      addBtn.textContent = "Unable to detect product";
+      return;
+    }
+
+    renderProduct(product);
   });
-}
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+  /* -----------------------------
+     Extraction
+  ------------------------------ */
+  async function extractAmazonWithRetry(tabId) {
+    const MAX_ATTEMPTS = 10;
+    const DELAY = 400;
 
-/* -----------------------------
-   Runs INSIDE page
------------------------------- */
-function extractProductFromPage(platform) {
-  function normalizePrice(text) {
-    if (!text) return null;
-    return Number(
-      text.replace(/[₹,]/g, "").replace(/[^\d.]/g, "")
-    );
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
+      const product = await executeExtraction(tabId);
+      if (product?.title && product?.price) return product;
+      await sleep(DELAY);
+    }
+    return null;
   }
 
-  // AMAZON
-  if (platform === "amazon") {
+  function executeExtraction(tabId) {
+    return new Promise((resolve) => {
+      chrome.scripting.executeScript(
+        {
+          target: { tabId },
+          func: extractAmazonProduct,
+        },
+        (results) => {
+          resolve(results?.[0]?.result ?? null);
+        }
+      );
+    });
+  }
+
+  function sleep(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  function extractAmazonProduct() {
+    function normalizePrice(text) {
+      if (!text) return null;
+      return Number(text.replace(/[₹,]/g, "").replace(/[^\d.]/g, ""));
+    }
+
     const title =
       document.getElementById("productTitle")?.innerText?.trim();
 
-    let priceText = null;
-
-    const offscreen = document.querySelector(".a-price .a-offscreen");
-    if (offscreen) priceText = offscreen.innerText;
+    let priceText =
+      document.querySelector(".a-price .a-offscreen")?.innerText;
 
     if (!priceText) {
       const whole = document.querySelector(".a-price-whole");
@@ -111,44 +145,57 @@ function extractProductFromPage(platform) {
       url: location.href,
     };
   }
-  return null;
-}
 
-/* -----------------------------
-   UI
------------------------------- */
-function renderProduct(product) {
-  addBtn.textContent = "Add to Price Watch";
-  addBtn.disabled = false;
+  /* -----------------------------
+     UI
+  ------------------------------ */
+  function renderProduct(product) {
+    addBtn.textContent = "Add to Price Watch";
+    addBtn.disabled = false;
 
-  const preview = document.createElement("div");
-  preview.style.marginTop = "10px";
-  preview.style.fontSize = "12px";
-  preview.style.color = "#cbd5f5";
+    // Remove old preview if exists
+    const old = document.getElementById("product-preview");
+    if (old) old.remove();
 
-  preview.innerHTML = `
-    <div style="margin-bottom:6px;">
-      <strong>${product.title}</strong>
-    </div>
-    <div>Platform: ${product.platform}</div>
-    <div>Price: ₹${product.price}</div>
-  `;
+    const preview = document.createElement("div");
+    preview.id = "product-preview";
+    preview.style.marginTop = "10px";
+    preview.style.fontSize = "12px";
+    preview.style.color = "#cbd5f5";
+    preview.style.lineHeight = "1.4";
 
-  document.body.appendChild(preview);
-}
+    preview.innerHTML = `
+      <div style="font-weight:600; margin-bottom:4px;">
+        ${product.title}
+      </div>
+      <div>Platform: ${product.platform}</div>
+      <div>Price: ₹${product.price}</div>
+    `;
 
-/* -----------------------------
-   URL detection
------------------------------- */
-function isAmazonProductPage(url) {
-  try {
-    const u = new URL(url);
-    return (
-      u.hostname.includes("amazon") &&
-      (u.pathname.includes("/dp/") ||
-        u.pathname.includes("/gp/product/"))
-    );
-  } catch {
-    return false;
+    document.body.appendChild(preview);
+
+    addBtn.onclick = () => {
+      const url = new URL(`${APP_BASE_URL}/dashboard`);
+      url.searchParams.set("fromExt", "1");
+      url.searchParams.set("title", product.title);
+      url.searchParams.set("price", product.price);
+      url.searchParams.set("platform", product.platform);
+      url.searchParams.set("productUrl", product.url);
+
+      chrome.tabs.create({ url: url.toString() });
+    };
   }
-}
+
+  function isAmazonProductPage(url) {
+    try {
+      const u = new URL(url);
+      return (
+        u.hostname.includes("amazon") &&
+        (u.pathname.includes("/dp/") ||
+          u.pathname.includes("/gp/product/"))
+      );
+    } catch {
+      return false;
+    }
+  }
+});
