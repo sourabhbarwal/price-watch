@@ -5,6 +5,42 @@ import { useAlertStore } from "@/store/alertStore";
 
 
 export const productService = {
+  async productExists({ userId, productUrl }) {
+    const { data, error } = await supabase
+      .from("products")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("product_url", productUrl)
+      .limit(1)
+      .single();
+
+    // If row exists → duplicate
+    if (data) return true;
+
+    // If error is "no rows" → not duplicate
+    if (error && error.code === "PGRST116") {
+      return false;
+    }
+
+    // Other errors → log & fail-safe
+    if (error) {
+      console.error("productExists error", error);
+    }
+
+    return false;
+  },
+  async getTargetPrice({ userId, productUrl }) {
+    const { data, error } = await supabase
+      .from("user_targets")
+      .select("target_price")
+      .eq("user_id", userId)
+      .eq("product_url", productUrl)
+      .single();
+
+    if (data) return data.target_price;
+    return null;
+  },
+
   async getProducts(userId) {
     const { data, error } = await supabase
       .from("products")

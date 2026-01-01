@@ -10,6 +10,11 @@ import AuthGuard from "@/components/Authguard";
 import { startAutoPriceCheck } from "@/lib/autoPriceCheckEngine";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useRef } from "react";
+import { useState } from "react";
+import ExtensionToast from "@/components/ExtensionToast";
+import { triggerImmediatePriceAlert } from "@/lib/extensionAlertHelper";
+
+
 
 
 export default function DashboardPage() {
@@ -17,8 +22,7 @@ export default function DashboardPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const extensionHandledRef = useRef(false);
-
-
+  const [toastMessage, setToastMessage] = useState(null);
   const {
     products,
     loading,
@@ -33,7 +37,7 @@ export default function DashboardPage() {
     if (fromExt !== "1") return;
 
     if (extensionHandledRef.current) return;
-  extensionHandledRef.current = true;
+    extensionHandledRef.current = true;
 
     const title = searchParams.get("title");
     const price = Number(searchParams.get("price"));
@@ -41,10 +45,19 @@ export default function DashboardPage() {
     const productUrl = searchParams.get("productUrl");
 
     if (!title || !price || !platform || !productUrl) return;
-
     async function addFromExtension() {
       try {
-        await productService.createProduct({
+        const exists = await productService.productExists({
+          userId: user.id,
+          productUrl,
+        });
+
+        if (exists) {
+          setToastMessage("You’re already tracking this product");
+          router.replace("/dashboard");
+          return;
+        }
+        const newProduct = await productService.createProduct({
           user_id: user.id,
           title,
           platform,
@@ -52,13 +65,23 @@ export default function DashboardPage() {
           current_price: price,
         });
 
-        // clean URL
+        // 🔔 Check & trigger alert
+        const targetPrice = await productService.getTargetPrice({
+          userId: user.id,
+          productUrl,
+        });
+
+        triggerImmediatePriceAlert({
+          product: newProduct,
+          targetPrice,
+        });
+
+        setToastMessage("Product added from extension");
         router.replace("/dashboard");
       } catch (err) {
         console.error("Extension add failed", err);
       }
     }
-
     addFromExtension();
   }, [user?.id]);
 
@@ -163,6 +186,12 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+      )}
+      {toastMessage && (
+        <ExtensionToast
+          message={toastMessage}
+          onClose={() => setToastMessage(null)}
+        />
       )}
     </div>
     </AuthGuard>
