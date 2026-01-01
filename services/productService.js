@@ -3,7 +3,6 @@ import { supabase } from "@/lib/supabaseClient";
 import { evaluatePriceAlert } from "@/lib/alertEngineV2";
 import { useAlertStore } from "@/store/alertStore";
 
-
 export const productService = {
   async productExists({ userId, productUrl }) {
     const { data, error } = await supabase
@@ -59,7 +58,14 @@ export const productService = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === "23505") {
+        console.warn("Duplicate product prevented by DB");
+        return null;
+      }
+
+      throw error;
+    }
     return data;
   },
 

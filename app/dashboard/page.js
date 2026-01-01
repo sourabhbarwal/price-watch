@@ -161,7 +161,7 @@ export default function DashboardPage() {
           No products yet. Add your first product to start tracking prices.
         </p>
       )}
-
+      
       {/* 🔹 PRODUCT GRID */}
       {products.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
