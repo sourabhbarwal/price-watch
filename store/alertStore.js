@@ -1,5 +1,6 @@
-// /store/alertStore.js
+// src/store/alertStore.js
 import { create } from "zustand";
+import { alertService } from "@/services/alertService";
 
 const STORAGE_KEY = "price-watch-alerts";
 const ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -35,10 +36,7 @@ function normalizeAlert(alert) {
     read: alert.read ?? false,
     createdAt: alert.createdAt ?? Date.now(),
 
-    // Optional metadata
     metadata: alert.metadata ?? {},
-
-    // Optional navigation
     href: alert.href ?? "/notifications",
   };
 }
@@ -70,8 +68,8 @@ function isInCooldown(existing, incoming) {
 export const useAlertStore = create((set, get) => ({
   notifications: loadAlerts(),
 
-  /* 🔔 Push alert (hardened) */
-  pushAlert(rawAlert) {
+  /* 🔔 Push alert (PUBLIC API — DO NOT BREAK) */
+  async pushAlert(rawAlert) {
     const normalized = normalizeAlert(rawAlert);
     const existing = get().notifications;
 
@@ -80,16 +78,19 @@ export const useAlertStore = create((set, get) => ({
 
     const updated = [normalized, ...existing];
 
+    // 1️⃣ Local persistence (instant UX)
     saveAlerts(updated);
     set({ notifications: updated });
 
-    // DEV-only visibility
+    // 2️⃣ Best-effort DB persistence (P1.1A)
+    try {
+      await alertService.saveAlert(normalized);
+    } catch (err) {
+      console.warn("[Alert DB save failed — non-blocking]", err);
+    }
+
     if (process.env.NODE_ENV === "development") {
-      console.debug(
-        "[Alert pushed]",
-        normalized.type,
-        normalized
-      );
+      console.debug("[Alert pushed]", normalized.type, normalized);
     }
   },
 

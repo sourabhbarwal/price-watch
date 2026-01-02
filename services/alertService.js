@@ -1,22 +1,37 @@
 // src/services/alertService.js
-import { evaluatePriceAlert } from "@/lib/alertEngineV2";
-import { adapter } from "@/adapters";
-import { useAlertStore } from "@/store/alertStore";
+import { supabase } from "@/lib/supabaseClient";
 
-export async function handleProductAlert(product) {
-  const alertStore = useAlertStore.getState();
+export const alertService = {
+  async saveAlert(alert) {
+    // 🔒 Must have product
+    if (!alert.productId) return;
 
-  const alert = evaluatePriceAlert(product);
-  if (!alert) return;
+    // 🔑 Get authenticated user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-  // 1️⃣ Push to store (cooldown + dedupe)
-  alertStore.pushAlert(alert);
+    if (authError || !user) {
+      console.warn("[AlertService] No authenticated user");
+      return;
+    }
 
-  // 2️⃣ Persist to backend (if enabled)
-  if (alert.productId) {
-    await adapter.saveAlert({
-      ...alert,
-      user_id: product.user_id,
-    });
-  }
-}
+    const payload = {
+      user_id: user.id,
+      product_id: alert.productId,
+      type: alert.type,
+      title: alert.title,
+      message : alert.description ?? alert.message ?? "",
+      read: alert.read ?? false,
+      metadata: alert.metadata ?? {},
+    };
+
+    const { error } = await supabase.from("alerts").insert(payload);
+
+    if (error) {
+      console.error("[AlertService] Insert failed", error);
+      throw error;
+    }
+  },
+};
