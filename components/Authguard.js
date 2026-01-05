@@ -2,11 +2,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+
+const PUBLIC_ROUTES = ["/login"];
 
 export default function AuthGuard({ children }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, loading, init } = useAuthStore();
 
   // Restore session on first mount
@@ -16,10 +19,14 @@ export default function AuthGuard({ children }) {
 
   // Redirect if unauthenticated
   useEffect(() => {
-    if (!loading && !user) {
+    if (!user && !PUBLIC_ROUTES.includes(pathname)) {
       router.replace("/login");
+      return;
     }
-  }, [loading, user, router]);
+    if (user && PUBLIC_ROUTES.includes(pathname)) {
+      router.replace("/dashboard");
+    }
+  }, [loading, user, router, pathname]);
 
   if (loading || !user) {
     return (
